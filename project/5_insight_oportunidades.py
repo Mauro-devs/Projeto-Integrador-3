@@ -1,15 +1,14 @@
 import polars as pl
 import time
-from pathlib import Path
 from config import PROCESSED_DIR
-
+from loguru import logger
 def calcular_fato_oportunidades():
-    print("="*70)
-    print("🌊 GERANDO INSIGHTS DE OPORTUNIDADES")
-    print("="*70)
+    logger.info("="*70)
+    logger.info("🌊 GERANDO INSIGHTS DE OPORTUNIDADES")
+    logger.info("="*70)
     start_time = time.time()
 
-    print("[1/4] Carregando Fato e Dimensões...")
+    logger.info("[1/4] Carregando Fato e Dimensões...")
     fato = pl.read_parquet(PROCESSED_DIR / "fato_estabelecimentos.parquet")
     dim_loc = pl.read_parquet(PROCESSED_DIR / "dim_localidades.parquet")
     dim_ativ = pl.read_parquet(PROCESSED_DIR / "dim_atividades_economicas.parquet")
@@ -24,8 +23,9 @@ def calcular_fato_oportunidades():
         .filter(pl.col("CODIGO_SITUACAO") == 2) 
         .filter(pl.col("BAIRRO").is_not_null() & (pl.col("BAIRRO") != ""))
     )
+    logger.success("Dados de Fato e Dimensoes carregados com sucesso!")
 
-    print("[2/4] Calculando densidade média do Estado...")
+    logger.info("[2/4] Calculando densidade média do Estado...")
     total_empresas_estado = abt.height
     
     # Peso de cada CNAE no estado inteiro
@@ -38,15 +38,17 @@ def calcular_fato_oportunidades():
     # Considera qualquer setor que tenha pelo menos 20 CNPJs ativos no estado inteiro
     # (Assim a gente pega farmácias e veterinários, mas tira fora absurdos como "Fábrica de Sinos")
     top_cnaes = df_estado.filter(pl.col("QTD_ESTADO") >= 20)
+    logger.success("Densidade média calculada e CNAEs relevantes selecionados!")
 
-    print("[3/4] Mapeando a concorrência bairro a bairro...")
+    logger.info("[3/4] Mapeando a concorrência bairro a bairro...")
     # Agrupa por Bairro
     total_por_bairro = abt.group_by(["MUNICIPIO", "BAIRRO"]).len().rename({"len": "TOTAL_NO_BAIRRO"})
     
     # Agrupa por Bairro + Setor (ID_ATIVIDADE)
     ativ_por_bairro = abt.group_by(["MUNICIPIO", "BAIRRO", "ATIVIDADE"]).len().rename({"len": "QTD_NO_BAIRRO"})
+    
 
-    print("[4/4] Aplicando Quociente Locacional e vinculando IDs...")
+    logger.info("[4/4] Aplicando Quociente Locacional e vinculando IDs...")
     radar = (
         ativ_por_bairro
         .join(total_por_bairro, on=["MUNICIPIO", "BAIRRO"])
@@ -81,13 +83,13 @@ def calcular_fato_oportunidades():
 
     # Alterado para fato_oportunidades.parquet
     radar_final.write_parquet(PROCESSED_DIR / "fato_oportunidades.parquet")
-    print(f"\n✅ Tabela Fato Agregada gerada em {time.time() - start_time:.2f}s!")
-    print(f"📁 Arquivo salvo em: {PROCESSED_DIR / 'fato_oportunidades.parquet'}")
+    logger.success(f"\n✅ Tabela Fato Agregada gerada em {time.time() - start_time:.2f}s!")
+    logger.info(f"📁 Arquivo salvo em: {PROCESSED_DIR / 'fato_oportunidades.parquet'}")
     
     return radar_final, dim_ativ
 
 def testar_fato_no_terminal(fato_df, dim_ativ, bairro_alvo):
-    print(f"\n\n🔍 TESTANDO A TABELA FATO: '{bairro_alvo}'")
+    logger.info(f"\n\n🔍 TESTANDO A TABELA FATO: '{bairro_alvo}'")
     
     # Filtra a Fato e faz Join com a Dimensão para pegar o nome
     dados_bairro = (
@@ -96,24 +98,24 @@ def testar_fato_no_terminal(fato_df, dim_ativ, bairro_alvo):
     )
 
     if dados_bairro.height == 0:
-        print("❌ Bairro não possui dados suficientes.")
+        logger.error("❌ Bairro não possui dados suficientes.")
         return
 
     bairro_exato = dados_bairro['BAIRRO'][0]
     total_empresas = dados_bairro['TOTAL_NO_BAIRRO'][0]
 
-    print(f"📍 {bairro_exato} | {total_empresas} empresas ativas.")
+    logger.info(f"📍 {bairro_exato} | {total_empresas} empresas ativas.")
 
     saturados = dados_bairro.filter(pl.col("INDICE_SATURACAO") >= 1.5).sort("INDICE_SATURACAO", descending=True).head(3)
     oportunidades = dados_bairro.filter(pl.col("INDICE_SATURACAO") <= 0.6).sort("INDICE_SATURACAO", descending=False).head(3)
 
-    print("\n🚨 Saturação (Oceano Vermelho):")
+    logger.info("\n🚨 Saturação (Oceano Vermelho):")
     for row in saturados.to_dicts():
-        print(f"   [{row['ID_ATIVIDADE']}] {row['CNAE_FISCAL_PRINCIPAL'][:45]}... | {row['INDICE_SATURACAO']}x")
+        logger.info(f"   [{row['ID_ATIVIDADE']}] {row['CNAE_FISCAL_PRINCIPAL'][:45]}... | {row['INDICE_SATURACAO']}x")
 
-    print("\n🌊 Oportunidade (Oceano Azul):")
+    logger.info("\n🌊 Oportunidade (Oceano Azul):")
     for row in oportunidades.to_dicts():
-        print(f"   [{row['ID_ATIVIDADE']}] {row['CNAE_FISCAL_PRINCIPAL'][:45]}... | {row['INDICE_SATURACAO']}x")
+        logger.info(f"   [{row['ID_ATIVIDADE']}] {row['CNAE_FISCAL_PRINCIPAL'][:45]}... | {row['INDICE_SATURACAO']}x")
 
 if __name__ == "__main__":
     fato_df, dim_ativ = calcular_fato_oportunidades()

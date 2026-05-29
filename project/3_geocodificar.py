@@ -2,7 +2,7 @@ import polars as pl
 import time
 from geopy.geocoders import Nominatim
 from config import PROCESSED_DIR
-
+from loguru import logger
 DIM_PATH = PROCESSED_DIR / "dim_localidades.parquet"
 
 """
@@ -10,17 +10,17 @@ DIM_PATH = PROCESSED_DIR / "dim_localidades.parquet"
     tenta a cada 30 segundos 30 vezes.
 """
 def aguardar_servidor(geolocator, max_tentativas=30, espera_segundos=10):
-    print("\nVerificando se o servidor Nominatim está pronto...")
+    logger.info("Verificando se o servidor Nominatim está pronto")
     for tentativa in range(1, max_tentativas + 1):
         try:
             geolocator.geocode("Vitória - ES, Brasil")
-            print("OK! O servidor está ONLINE e pronto.\n")
+            logger.info("O servidor está ONLINE e pronto.")
             return True
         except Exception:
-            print(f"  -> Servidor iniciando... (Tentativa {tentativa}/{max_tentativas}). Aguardando {espera_segundos}s...")
+            logger.info(f"Servidor iniciando... (Tentativa {tentativa}/{max_tentativas}). Aguardando {espera_segundos}s...")
             time.sleep(espera_segundos)
     
-    print("\n[Erro Crítico] O servidor não respondeu a tempo.")
+    logger.error("O servidor não respondeu a tempo.")
     return False
 
 def geocodificar(geolocator, logradouro, bairro, municipio, uf, cep):
@@ -97,7 +97,7 @@ def geocodificar(geolocator, logradouro, bairro, municipio, uf, cep):
     A cada 1000 registros processados ele salva no dim_localidades.parquet
 """
 def processar_coordenadas(escolha: int):
-    print("Iniciando geocodificação da dimensão de localidades...")
+    logger.info("Iniciando geocodificação da dimensão de localidades")
     
     df = pl.read_parquet(DIM_PATH)
     
@@ -121,10 +121,10 @@ def processar_coordenadas(escolha: int):
         df_pendentes = df
 
     qtd_pendentes = df_pendentes.height
-    print(f"Total de registros: {df.height} | Pendentes de geocodificação: {qtd_pendentes}\n")
+    logger.info(f"Total de registros: {df.height} | Pendentes de geocodificação: {qtd_pendentes}\n")
 
     if qtd_pendentes == 0:
-        print("Todos os endereços já possuem coordenadas! Nada a fazer.")
+        logger.success("Todos os endereços já possuem coordenadas! Nada a fazer.")
         return
 
     # Instancia do Nominatim
@@ -152,7 +152,7 @@ def processar_coordenadas(escolha: int):
     # Contador para o log final
     total_processados_agora = 0
 
-    print("-" * 80)
+    logger.info("-" * 80)
     
     for i, row in enumerate(df_pendentes.to_dicts(), start=1):
         id_localidade = row['ID_LOCALIDADE'] 
@@ -164,7 +164,7 @@ def processar_coordenadas(escolha: int):
 
         endereco_completo = f"{logradouro}, {bairro}, {municipio} - {cep} - {uf}, Brasil"
         endereco_curto = endereco_completo[:45].ljust(48, ".")
-        print(f"[{i}/{qtd_pendentes}] {endereco_curto}", end="", flush=True)
+        logger.info(f"[{i}/{qtd_pendentes}] {endereco_curto}", end="", flush=True)
 
         resultado = geocodificar(geolocator, logradouro, bairro, municipio, uf, cep)
         
@@ -180,22 +180,22 @@ def processar_coordenadas(escolha: int):
         status = resultado["status"]
         if status == "OK":
             contador_encontrado += 1
-            print(f" ✅ OK ({resultado['latitude']:.4f}, {resultado['longitude']:.4f})")
+            logger.success(f" ✅ OK ({resultado['latitude']:.4f}, {resultado['longitude']:.4f})")
         elif status == "FALLBACK":
             contador_fallback += 1
-            print(f" ⚠️ FALLBACK ({resultado['latitude']:.4f}, {resultado['longitude']:.4f})")
+            logger.warning(f" ⚠️ FALLBACK ({resultado['latitude']:.4f}, {resultado['longitude']:.4f})")
         elif status == "NÃO ENCONTRADO":
             contador_nao_encontrado += 1
-            print(" ❌ NÃO ENCONTRADO")
+            logger.error(" ❌ NÃO ENCONTRADO")
         elif status == "ERRO":
-            print(f" 💥 ERRO: {resultado['erro_msg']}")
+            logger.error(f" 💥 ERRO: {resultado['erro_msg']}")
 
         # A cada 1000 localidades processadas ele salva no dim_localidades
         if i % 1000 == 0:
-            print(f"\n[AUTO-SAVE] Salvando lote de 1000 registros no disco... ({i}/{qtd_pendentes})")
-            print(f"Total encontrados: {contador_encontrado}")
-            print(f"Total fallback: {contador_fallback}")
-            print(f"Total não encontrados: {contador_nao_encontrado}")
+            logger.info(f"\n[AUTO-SAVE] Salvando lote de 1000 registros no disco... ({i}/{qtd_pendentes})")
+            logger.info(f"Total encontrados: {contador_encontrado}")
+            logger.info(f"Total fallback: {contador_fallback}")
+            logger.info(f"Total não encontrados: {contador_nao_encontrado}")
 
             df_temp = pl.DataFrame({
                 "ID_LOCALIDADE": ids_atualizados,
@@ -224,17 +224,17 @@ def processar_coordenadas(escolha: int):
             ufs_list.clear()
             ceps_list.clear()
             
-            print("[AUTO-SAVE] Concluído! Retomando buscas...\n")
+            logger.info("[AUTO-SAVE] Concluído! Retomando buscas...\n")
 
-    print("-" * 80)
+    logger.info("-" * 80)
 
     # Salvamento final dos que sobraram
     if len(ids_atualizados) > 0:
-        print(f"\n[FINALIZANDO] Salvando as últimas {len(ids_atualizados)} ruas que restaram...")
+        logger.info(f"\n[FINALIZANDO] Salvando as últimas {len(ids_atualizados)} ruas que restaram...")
 
-        print(f"Total encontrados: {contador_encontrado}")
-        print(f"Total fallback: {contador_fallback}")
-        print(f"Total não encontrados: {contador_nao_encontrado}")
+        logger.info(f"Total encontrados: {contador_encontrado}")
+        logger.info(f"Total fallback: {contador_fallback}")
+        logger.info(f"Total não encontrados: {contador_nao_encontrado}")
 
         df_temp = pl.DataFrame({
             "ID_LOCALIDADE": ids_atualizados,
@@ -250,17 +250,17 @@ def processar_coordenadas(escolha: int):
         df.write_parquet(DIM_PATH)
         total_processados_agora += len(ids_atualizados)
 
-    print(f"\nProcesso 100% concluído! {total_processados_agora} coordenadas processadas nesta sessão e salvas em: {DIM_PATH}")
+    logger.info(f"\nProcesso 100% concluído! {total_processados_agora} coordenadas processadas nesta sessão e salvas em: {DIM_PATH}")
 
 if __name__ == "__main__":
-    print("="*30)
-    print("1 - Geocodificar apenas localidades não processadas ainda")
-    print("2 - Geocodificar todas as localidades que não foram processadas e que já foram mas não foram encontradas as coordenadas")
-    print("3 - Geocodificar todas as localidades")
-    print("Outro - Sair")
+    logger.info("="*30)
+    logger.info("1 - Geocodificar apenas localidades não processadas ainda")
+    logger.info("2 - Geocodificar todas as localidades que não foram processadas e que já foram mas não foram encontradas as coordenadas")
+    logger.info("3 - Geocodificar todas as localidades")
+    logger.info("Outro - Sair")
 
     escolha = input(">> ")
-    print("="*30)
+    logger.info("="*30)
 
     try:
         escolha = int(escolha)
@@ -268,7 +268,7 @@ if __name__ == "__main__":
         if escolha >= 1 and escolha <= 3:
             processar_coordenadas(escolha)
         else:
-            print("Bye")
+            logger.info("Bye")
 
     except Exception:
-        print("Bye")
+        logger.info("Bye")

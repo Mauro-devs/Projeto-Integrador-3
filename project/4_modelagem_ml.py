@@ -7,17 +7,17 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report, confusion_matrix
 import joblib
-
+from loguru import logger
 from config import PROCESSED_DIR
 
 def treinar_preditor_crescimento():
-    print("="*60)
-    print("PREDITOR DE CRESCIMENTO E ESCALA (MEI -> ME)")
-    print("="*60)
+    logger.info("="*60)
+    logger.info("PREDITOR DE CRESCIMENTO E ESCALA (MEI -> ME)")
+    logger.info("="*60)
     start_time = time.time()
 
     # 1. Carrega as tabelas do seu Star Schema
-    print("[1/4] Carregando e unindo os dados do Star Schema...")
+    logger.info("[1/4] Carregando e unindo os dados do Star Schema...")
     fato = pl.read_parquet(PROCESSED_DIR / "fato_estabelecimentos.parquet")
     dim_loc = pl.read_parquet(PROCESSED_DIR / "dim_localidades.parquet")
     dim_ativ = pl.read_parquet(PROCESSED_DIR / "dim_atividades_economicas.parquet")
@@ -33,9 +33,10 @@ def treinar_preditor_crescimento():
         .join(dim_data, left_on="DATA_INICIO", right_on="ID_DATA", how="left")
         .rename({"DATA": "DATA_INICIO_REAL"})
     )
+    logger.success("Dados carregados e unidos com sucesso!")
 
     # 3. Engenharia de Variáveis
-    print("[2/4] Preparando o Alvo (Quem conseguiu crescer?)...")
+    logger.info("[2/4] Preparando o Alvo (Quem conseguiu crescer?)...")
     data_atual = datetime.now().date()
     abt = abt.with_columns([
         (pl.lit(data_atual) - pl.col("DATA_INICIO_REAL")).dt.total_days().alias("IDADE_DIAS")
@@ -60,7 +61,7 @@ def treinar_preditor_crescimento():
         pl.col("BAIRRO").is_not_null() # <-- Garantia de qualidade dos dados
     ).to_pandas()
 
-    print(f"      -> {len(df_ml)} microempresendedores encontrados para análise.")
+    logger.info(f"      -> {len(df_ml)} microempresendedores encontrados para análise.")
 
     # 4. Codificando Texto para Número (IA não lê texto)
     le_cnae = LabelEncoder()
@@ -78,21 +79,21 @@ def treinar_preditor_crescimento():
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+    logger.success("Dados preparados para o modelo de Machine Learning!")
     # 6. Treinamento da IA
-    print("[3/4] Treinando a Inteligência Artificial...")
+    logger.info("[3/4] Treinando a Inteligência Artificial...")
     
     # ADICIONADO: class_weight='balanced' para forçar a IA a dar peso igual aos acertos e falhas
     modelo = RandomForestClassifier(n_estimators=100, max_depth=12, class_weight='balanced', random_state=42, n_jobs=-1)
     modelo.fit(X_train, y_train)
 
-    print("\n[4/4] RESULTADOS DA IA (A PROVA FINAL)")
+    logger.info("\n[4/4] RESULTADOS DA IA (A PROVA FINAL)")
     previsoes = modelo.predict(X_test)
     
-    print("\n-> Matriz de Confusão (0 = Não Cresceu, 1 = Escalou para ME):")
-    print(confusion_matrix(y_test, previsoes))
-    
-    print("\n-> Relatório de Métricas:")
-    print(classification_report(y_test, previsoes))
+    logger.info("\n-> Matriz de Confusão (0 = Não Cresceu, 1 = Escalou para ME):")
+    logger.info(confusion_matrix(y_test, previsoes))
+    logger.info("\n-> Relatório de Métricas:")
+    logger.info(classification_report(y_test, previsoes))
 
     # ==========================================
     # SALVANDO OS MODELOS PARA O STREAMLIT
@@ -106,15 +107,17 @@ def treinar_preditor_crescimento():
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     
     # Salva o "Cérebro" da IA
+    logger.info(" Salvando o modelo de Machine Learning...")
     joblib.dump(modelo, MODELS_DIR / "modelo_crescimento.joblib")
     
     # Salva os "Tradutores" (Extremamente importante para a UI interativa depois)
+    logger.info(" Salvando os encoders...")
     joblib.dump(le_cnae, MODELS_DIR / "le_cnae.joblib")
     joblib.dump(le_municipio, MODELS_DIR / "le_municipio.joblib")
     joblib.dump(le_bairro, MODELS_DIR / "le_bairro.joblib")
 
-    print(f"\n✅ Execução concluída em {time.time() - start_time:.2f} segundos!")
-    print(f"📁 Modelos e Encoders salvos na pasta: {MODELS_DIR}")
+    logger.success(f"\n✅ Execução concluída em {time.time() - start_time:.2f} segundos!")
+    logger.info(f"📁 Modelos e Encoders salvos na pasta: {MODELS_DIR}")
 
 if __name__ == "__main__":
     treinar_preditor_crescimento()

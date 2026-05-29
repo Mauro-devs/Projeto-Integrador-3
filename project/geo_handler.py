@@ -1,7 +1,7 @@
 import polars as pl
 import numpy as np
 from config import PROCESSED_DIR
-
+from loguru import logger
 INPUT_PATH = PROCESSED_DIR / "data" / "processed" / "amostra_geocodificada.parquet"
 
 """
@@ -25,7 +25,7 @@ def calcular_distancia_metros(lat_origem: float, lon_origem: float, lat_destino:
 # Simula a análise de viabilidade de um ponto comercial.
 def analisar_ponto_comercial(lat_usuario, lon_usuario, raio_metros=1000):
     if not INPUT_PATH.exists():
-        print(f"Erro: Arquivo {INPUT_PATH} nao encontrado.")
+        logger.error(f"Erro: Arquivo {INPUT_PATH} nao encontrado.")
         return
 
     df = pl.read_parquet(INPUT_PATH).filter(pl.col("latitude").is_not_null())
@@ -41,10 +41,10 @@ def analisar_ponto_comercial(lat_usuario, lon_usuario, raio_metros=1000):
     total_ativas = vizinhos.filter(pl.col("situacao_cadastral") == 2).height
     total_baixadas = vizinhos.filter(pl.col("situacao_cadastral") == 8).height
     
-    print(f"\n--- RESULTADOS DO RADAR ---")
-    print(f"Total de estabelecimentos no raio: {vizinhos.height}")
-    print(f"Ativas: {total_ativas}")
-    print(f"Baixadas: {total_baixadas}")
+    logger.info(f"\n--- RESULTADOS DO RADAR ---")
+    logger.info(f"Total de estabelecimentos no raio: {vizinhos.height}")
+    logger.info(f"Ativas: {total_ativas}")
+    logger.info(f"Baixadas: {total_baixadas}")
 
 if __name__ == "__main__":
     # Coordenadas de teste em Jardim Camburi
