@@ -56,7 +56,6 @@ def zip_to_csv(zip_path: str, destination_path: str, og_encoding: str="latin1", 
                 with open(final_path, 'w', encoding=dest_encoding) as output_file:
                     for line in text_reader:
                         output_file.write(line)
-                        logger.info(f" -> Escrevendo linha: {line.strip()}")
             logger.success(f" -> Sucesso! Salvo em: {final_path}\n")
 
 """
