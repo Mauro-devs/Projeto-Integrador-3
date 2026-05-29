@@ -93,7 +93,7 @@ def treinar_preditor_crescimento():
     logger.info("\n-> Matriz de Confusão (0 = Não Cresceu, 1 = Escalou para ME):")
     logger.info(confusion_matrix(y_test, previsoes))
     logger.info("\n-> Relatório de Métricas:")
-    logger.info(classification_report(y_test, previsoes))
+    print(classification_report(y_test, previsoes))
 
     # ==========================================
     # SALVANDO OS MODELOS PARA O STREAMLIT

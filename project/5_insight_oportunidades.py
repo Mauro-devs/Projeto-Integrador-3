@@ -83,13 +83,13 @@ def calcular_fato_oportunidades():
 
     # Alterado para fato_oportunidades.parquet
     radar_final.write_parquet(PROCESSED_DIR / "fato_oportunidades.parquet")
-    logger.success(f"\n✅ Tabela Fato Agregada gerada em {time.time() - start_time:.2f}s!")
+    logger.success(f"Tabela Fato Agregada gerada em {time.time() - start_time:.2f}s!")
     logger.info(f"📁 Arquivo salvo em: {PROCESSED_DIR / 'fato_oportunidades.parquet'}")
     
     return radar_final, dim_ativ
 
 def testar_fato_no_terminal(fato_df, dim_ativ, bairro_alvo):
-    logger.info(f"\n\n🔍 TESTANDO A TABELA FATO: '{bairro_alvo}'")
+    logger.info(f"TESTANDO A TABELA FATO: '{bairro_alvo}'")
     
     # Filtra a Fato e faz Join com a Dimensão para pegar o nome
     dados_bairro = (
@@ -109,11 +109,11 @@ def testar_fato_no_terminal(fato_df, dim_ativ, bairro_alvo):
     saturados = dados_bairro.filter(pl.col("INDICE_SATURACAO") >= 1.5).sort("INDICE_SATURACAO", descending=True).head(3)
     oportunidades = dados_bairro.filter(pl.col("INDICE_SATURACAO") <= 0.6).sort("INDICE_SATURACAO", descending=False).head(3)
 
-    logger.info("\n🚨 Saturação (Oceano Vermelho):")
+    logger.info("🚨 Saturação (Oceano Vermelho):")
     for row in saturados.to_dicts():
         logger.info(f"   [{row['ID_ATIVIDADE']}] {row['CNAE_FISCAL_PRINCIPAL'][:45]}... | {row['INDICE_SATURACAO']}x")
 
-    logger.info("\n🌊 Oportunidade (Oceano Azul):")
+    logger.info("🌊 Oportunidade (Oceano Azul):")
     for row in oportunidades.to_dicts():
         logger.info(f"   [{row['ID_ATIVIDADE']}] {row['CNAE_FISCAL_PRINCIPAL'][:45]}... | {row['INDICE_SATURACAO']}x")
 
