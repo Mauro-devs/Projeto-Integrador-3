@@ -5,7 +5,7 @@ import joblib
 from pathlib import Path
 
 # APENAS PROCESSED_DIR AGORA (Arquitetura 100% limpa)
-from config import PROCESSED_DIR
+from project.config import PROCESSED_DIR
 
 # ==========================================
 # CONFIGURAÇÃO DA PÁGINA
