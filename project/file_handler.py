@@ -7,7 +7,7 @@ import zipfile
 import io
 from pathlib import Path
 from typing import List
-
+from loguru import logger
 
 """
     Passa o caminho de um .zip que contenha um csv, 
@@ -24,7 +24,7 @@ def zip_to_csv(zip_path: str, destination_path: str, og_encoding: str="latin1", 
     
     # Garante que a pasta de destino exista (cria ela caso não)
     destination_path.mkdir(parents=True, exist_ok=True)
-    print(f"Abrindo arquivo: {zip_path.name}")
+    logger.info(f"Abrindo arquivo: {zip_path.name}")
     
     # Abre o .zip em leitura
     with zipfile.ZipFile(zip_path, 'r') as z:
@@ -45,7 +45,7 @@ def zip_to_csv(zip_path: str, destination_path: str, og_encoding: str="latin1", 
             # Caminho completo final
             final_path = destination_path / file_name
 
-            print(f" -> Convertendo '{internal_file_name}' para {dest_encoding}...")
+            logger.info(f" -> Convertendo '{internal_file_name}' para {dest_encoding}...")
             
             # Lê o arquivo
             with z.open(internal_file_name, 'r') as arquivo_zipado:
@@ -56,8 +56,8 @@ def zip_to_csv(zip_path: str, destination_path: str, og_encoding: str="latin1", 
                 with open(final_path, 'w', encoding=dest_encoding) as output_file:
                     for line in text_reader:
                         output_file.write(line)
-                        
-            print(f" -> Sucesso! Salvo em: {final_path}\n")
+                        logger.info(f" -> Escrevendo linha: {line.strip()}")
+            logger.success(f" -> Sucesso! Salvo em: {final_path}\n")
 
 """
     entrada:
@@ -74,10 +74,10 @@ def batch_zip_to_csv(source_folder: str, zip_filenames: List[str], destination_f
     
     # Verifica se a pasta de origem existe
     if not source_folder.exists() or not source_folder.is_dir():
-        print(f"[Erro] A pasta de origem não existe ou não é um diretório: {source_folder}")
+        logger.error(f"[Erro] A pasta de origem não existe ou não é um diretório: {source_folder}")
         return
 
-    print(f"Iniciando processamento em lote de {len(zip_filenames)} arquivo(s)...\n" + "-"*40)
+    logger.info(f"Iniciando processamento em lote de {len(zip_filenames)} arquivo(s)...\n" + "-"*40)
 
     # Itera sobre os nomes fornecidos na lista
     for zip_name in zip_filenames:
@@ -86,7 +86,7 @@ def batch_zip_to_csv(source_folder: str, zip_filenames: List[str], destination_f
         
         # Verifica se o arquivo específico existe antes de tentar abrir
         if not full_zip_path.exists():
-            print(f"[Aviso] Arquivo não encontrado na pasta, ignorando: {zip_name}\n")
+            logger.warning(f"[Aviso] Arquivo não encontrado na pasta, ignorando: {zip_name}\n")
             continue
         
         # Tenta processar o arquivo. Se um falhar (ex: ZIP corrompido), o script continua
@@ -100,6 +100,7 @@ def batch_zip_to_csv(source_folder: str, zip_filenames: List[str], destination_f
             )
         except Exception as e:
             message = f"ERRO FATAL: Falha ao converter o arquivo '{zip_name}'. O processamento em lote foi interrompido."
+            logger.error(message)
             raise RuntimeError(message) from e
             
-    print("-" * 40 + "\nProcessamento em lote concluído!")
+    logger.success("-" * 40 + "\nProcessamento em lote concluído!")
