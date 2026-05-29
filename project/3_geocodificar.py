@@ -128,7 +128,7 @@ def processar_coordenadas(escolha: int):
         return
 
     # Instancia do Nominatim
-    geolocator = Nominatim(domain="localhost:8080", scheme="http", user_agent="radar_competitivo_local")
+    geolocator = Nominatim(domain="localhost:8080", scheme="http", user_agent="radar_competitivo_local", timeout=15)
 
     # Se o servidor não rodar dentro do tempo esperado
     if not aguardar_servidor(geolocator):
