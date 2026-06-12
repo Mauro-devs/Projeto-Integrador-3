@@ -6,6 +6,8 @@ Este sistema é uma plataforma de inteligência de mercado que apoia o ecossiste
 
 É um sistema Web, atualmente utiliza dados abertos da receita federal para fazer as análises de dados.
 
+Demonstração do sistema em vídeo: [Video](https://www.youtube.com/watch?v=ta0LmyCT5y8)
+
 ## 🛠️ Atuais Funcionalidades
 
 ### Análise de Potencial de Escala
